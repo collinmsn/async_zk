@@ -5,8 +5,15 @@
 
 class ZKDefaultCallback : public ZKCallback{
 public:
-  virtual void add_auth_cb(int rc, const std::string& user, const std::string& passwd);
-  
+  virtual void get_children_cb(int rc, const std::string& path, const std::vector<std::string>& children);
+  virtual void get_children_data_cb(int rc,
+                             const std::map<std::string, std::string>& data);
+  virtual void get_data_cb(int rc, const std::string& path, const std::string& data);
+  virtual void created_event_cb(const std::string& path);
+  virtual void deleted_event_cb(const std::string& path);
+  virtual void children_changed_event_cb(const std::string& path);
+  virtual void data_changed_event_cb(const std::string& path);
+  virtual void expired_event_cb(const std::string& path);
 };
 
 #endif

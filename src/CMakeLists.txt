@@ -4,7 +4,7 @@
 #
 CMAKE_MINIMUM_REQUIRED (VERSION 2.6.2)
 PROJECT (PushDemo)
-SET (APPLICATION_NAME "PushDemo")
+SET (APPLICATION_NAME "xcs")
 SET (APPLICATION_CODENAME "${PROJECT_NAME}")
 SET (APPLICATION_COPYRIGHT_YEARS "2013")
 SET (APPLICATION_VERSION_MAJOR 1)
@@ -33,9 +33,9 @@ SET(CXX_FLAGS
  -DVALGRIND
  -D_FILE_OFFSET_BITS=64
  -DHAVE_STDINT_H
--DHAVE_INTTYPES_H
--DHAVE_CONFIG_H
- -DHAVE_NETINET_IN_H
+ -DHAVE_INTTYPES_H
+ #-DHAVE_CONFIG_H
+ #-DHAVE_NETINET_IN_H
  )
 
 STRING(REPLACE ";" " " CMAKE_CXX_FLAGS "${CXX_FLAGS}")
@@ -71,20 +71,23 @@ FIND_LIBRARY(THRIFTNB_LIBRARY NAMES thriftnb)
 FIND_LIBRARY(BOOST_SYSTEM_LIBRARY NAMES boost_system)
 FIND_LIBRARY(BOOST_THREAD_LIBRARY NAMES boost_thread)
 FIND_LIBRARY(LIBEVENT_LIBRARY NAMES event)
+FIND_LIBRARY(ZOOKEEPER_LIBRARY NAMES zookeeper_mt)
 
 LINK_LIBRARIES(${THRIFT_LIBRARY} ${THRIFTNB_LIBRARY}
   ${BOOST_SYSTEM_LIBRARY} ${BOOST_THREAD_LIBRARY}
   ${GLOG_LIBRARY} ${GFLAGS_LIBRARY}
   ${LIBEVENT_LIBRARY}
+  ${ZOOKEEPER_LIBRARY}
   pthread)
 
-SET(common_SRC gen-cpp/ChatService.cpp gen-cpp/ChatService_constants.cpp gen-cpp/ChatService_types.cpp)
-SET(client_SRC  client/Client.cc client/RequestQueue.cc client/ChatServiceClientHandler.cc ${common_SRC})
-MESSAGE("client src: ${client_SRC}")
-ADD_EXECUTABLE(client ${client_SRC})
-SET(server_SRC server/Server.cc server/EmptyResponser.cc server/ChatServiceServerHandler.cc server/TNonblockingPushServer.cc ${common_SRC})
-MESSAGE("server src: ${server_SRC}")
-ADD_EXECUTABLE(server ${server_SRC})
+#SET(common_SRC gen-cpp/ChatService.cpp gen-cpp/ChatService_constants.cpp gen-cpp/ChatService_types.cpp)
+#SET(client_SRC  client/Client.cc client/RequestQueue.cc client/ChatServiceClientHandler.cc ${common_SRC})
+#MESSAGE("client src: ${client_SRC}")
+#ADD_EXECUTABLE(client ${client_SRC})
+#SET(server_SRC server/Server.cc server/EmptyResponser.cc server/ChatServiceServerHandler.cc server/TNonblockingPushServer.cc ${common_SRC})
+FILE(GLOB srcs "*.cc")
+MESSAGE("srcs: ${srcs}")
+ADD_EXECUTABLE(demo ${srcs})
 
 
 
