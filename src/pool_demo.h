@@ -3,6 +3,7 @@
  *
  *  Created on: Aug 12, 2013
  *      Author: root
+ * 
  */
 
 #ifndef _POOL_DEMO_H_
@@ -11,6 +12,10 @@
 #include <string>
 #include "zkdefaultcallback.h"
 #include "zkclient.h"
+
+/**
+ * demo how to use async zk to watch configure information changing
+ */
 
 class PoolDemo : public ZKDefaultCallback {
  public:
@@ -24,7 +29,6 @@ class PoolDemo : public ZKDefaultCallback {
   virtual void get_children_data_cb(int rc,
                            const std::map<std::string, std::string>& data);
   virtual void get_data_cb(int rc, const std::string& path, const std::string& data);
-  virtual void created_event_cb(const std::string& path);
   virtual void deleted_event_cb(const std::string& path);
   virtual void children_changed_event_cb(const std::string& path);
   virtual void data_changed_event_cb(const std::string& path);

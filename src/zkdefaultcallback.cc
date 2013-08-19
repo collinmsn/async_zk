@@ -18,12 +18,11 @@ void ZKDefaultCallback::get_children_data_cb(int rc, const std::map<std::string,
 void ZKDefaultCallback::get_data_cb(int rc, const std::string& path, const std::string& data) {
   LOG(INFO) << "rc: " << rc << " path: " << path << " value: " << data;
 }
-void ZKDefaultCallback::created_event_cb(const std::string& path) {
-  LOG(INFO) << "path created: " << path;
-}
+
 void ZKDefaultCallback::deleted_event_cb(const std::string& path) {
   LOG(INFO) << "path deleted: " << path;
 }
+
 void ZKDefaultCallback::children_changed_event_cb(const std::string& path) {
   LOG(INFO) << "children changed: " << path;
 }

@@ -32,10 +32,7 @@ void PoolDemo::get_children_data_cb(int rc,
 void PoolDemo::get_data_cb(int rc, const std::string& path, const std::string& data) {
   ZKDefaultCallback::get_data_cb(rc, path, data);
 }
-void PoolDemo::created_event_cb(const std::string& path) {
-  ZKDefaultCallback::created_event_cb(path);
-  client_->get_data(path, true, shared_from_this());
-}
+
 void PoolDemo::deleted_event_cb(const std::string& path) {
   ZKDefaultCallback::deleted_event_cb(path);
 }
