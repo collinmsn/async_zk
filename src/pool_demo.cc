@@ -10,11 +10,9 @@ void PoolDemo::add_expired_listener(const std::string& path) {
   client_->add_expired_listener(path, shared_from_this());
 }
 void PoolDemo::add_auth(const std::string& user, const std::string& passwd) {
-  //client_.add_auth(user, passwd, boost::dynamic_pointer_cast<PoolDemo>(shared_from_this()));
   client_->add_auth(user, passwd);
 }
 void PoolDemo::get_children(const std::string& path, bool watch) {
-  // /hw.test.xoa.renren.com/1/0"
   client_->get_children(path, watch, shared_from_this());
 }
 PoolDemo::PoolDemo() {

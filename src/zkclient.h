@@ -10,6 +10,7 @@
 #include <boost/thread/locks.hpp>
 #include <boost/thread.hpp>
 #include <boost/noncopyable.hpp>
+#include <boost/algorithm/string.hpp>
 #include <glog/logging.h>
 #include <zookeeper/zookeeper.h>
 #include <gflags/gflags.h>
@@ -18,15 +19,15 @@
 
 DECLARE_string(zk_host);
 DECLARE_string(zk_root);
-DECLARE_int32(session_timeout);
+DECLARE_int32(zk_session_timeout);
 
 class TaskRunner {
- public:
-  TaskRunner(TaskQueue<ZKTaskWrapper>* queue)
-      : queue_(queue) {
+public:
+TaskRunner(TaskQueue<ZKTaskWrapper>* queue)
+    : queue_(queue), stop_(false) {
   }
   void operator()() {
-    while (true) {
+    while (!stop_) {
       google::FlushLogFiles(google::INFO);
       ZKTaskWrapper task_wrapper = queue_->pop_front();
       LOG(INFO)<< "task_type: " << ZKTaskWrapper::task_type(task_wrapper.priority_);
@@ -36,15 +37,19 @@ class TaskRunner {
           break;
         default:
           sleep(15);
-          LOG(WARNING)<< "task failed, repeat: rc " << rc;
+          LOG(WARNING)<< "task failed, repeat: rc " << rc << ": " << zerror(rc);
           // give expired task a chance to run
           queue_->push_back(task_wrapper);
           break;
       }
     }
   }
- private:
+  void stop() {
+    stop_ = true;
+  }
+private:
   TaskQueue<ZKTaskWrapper>* queue_;
+  bool stop_;
 };
 enum ZKClientRole {
   ACCESSOR,
@@ -54,18 +59,18 @@ enum ZKClientRole {
 struct AuthInfo {
   std::string user_;
   std::string passwd_;
-  AuthInfo(const std::string& user, const std::string& passwd)
-      : user_(user),
-        passwd_(passwd) {
+ AuthInfo(const std::string& user, const std::string& passwd)
+ : user_(user),
+    passwd_(passwd) {
 
-  }
+ }
   bool operator<(const AuthInfo& rhs) const {
     return user_ < rhs.user_ || passwd_ < rhs.passwd_;
   }
 };
 template<ZKClientRole role>
 class ZKClient : public boost::noncopyable {
- public:
+public:
   typedef std::map<std::string, ZKCallbackPtr> ListenerMap;
   static ZKClient<role>* Instance() {
     if (!s_self_) {
@@ -76,12 +81,13 @@ class ZKClient : public boost::noncopyable {
     }
     return s_self_;
   }
- protected:
-  ZKClient()
-      : host_(FLAGS_zk_host),
-        root_(FLAGS_zk_root),
-        session_timeout_(FLAGS_session_timeout),
-        excutor_(new boost::thread(TaskRunner(&tasks_))) {
+protected:
+ZKClient()
+    : host_(FLAGS_zk_host),
+      root_(FLAGS_zk_root),
+      session_timeout_(FLAGS_zk_session_timeout),
+      zh_(NULL),
+      excutor_(new boost::thread(TaskRunner(&tasks_))) {
     reinit_session();
   }
   ~ZKClient() {
@@ -89,7 +95,7 @@ class ZKClient : public boost::noncopyable {
       zookeeper_close(zh_);
     }
   }
- public:
+public:
   void add_expired_listener(const std::string& path,
                             const ZKCallbackPtr& listener) {
     tasks_.push_back(
@@ -124,7 +130,7 @@ class ZKClient : public boost::noncopyable {
             boost::bind(&ZKClient::get_data_task, this, path, watch,
                         callback)));
   }
- private:
+private:
   // called in zookeeper completion thread
   void reinit_session() {
     tasks_.push_back(
@@ -139,7 +145,7 @@ class ZKClient : public boost::noncopyable {
     tasks_.push_back(
         ZKTaskWrapper(boost::bind(&ZKClient::children_changed_task, this, path)));
   }
- private:
+private:
   int add_auth_task(const std::string& user, const std::string& passwd) {
     AuthInfo auth(user, passwd);
     auth_infos_.insert(auth);
@@ -148,7 +154,7 @@ class ZKClient : public boost::noncopyable {
     std::string cert = user + ":" + passwd;
     int rc = zoo_add_auth(zh_, scheme.c_str(), cert.c_str(), cert.size(), NULL,
                           NULL);
-    LOG(INFO) << "add_auth_task: " << user << " " << passwd << " rc: " << rc;
+    LOG(INFO) << __func__ << " rc: " << rc << ": " << zerror(rc) << ", (" << user << " " << passwd << ")";
     return rc;
   }
   int get_children_task(const std::string& path, bool watch,
@@ -171,13 +177,13 @@ class ZKClient : public boost::noncopyable {
       callback->get_children_cb(rc, path, children);
     }
     deallocate_String_vector(&strings);
-    LOG(INFO) << "get_children_task: " << path << " rc: " << rc;
+    LOG(INFO) << __func__ << " rc: " << rc << ": " << zerror(rc) << ", path: " << path;    
     return rc;
   }
   int get_children_data_task(const std::vector<std::string>& nodes, bool watch,
                              const ZKCallbackPtr& callback) {
     std::map<std::string, std::string> data;
-    const size_t kBufSize = 1024;
+    const size_t kBufSize = 20 * 1024;
     char buf[kBufSize];
     int rc = ZOK;
     int buf_len = kBufSize;
@@ -192,25 +198,27 @@ class ZKClient : public boost::noncopyable {
                       NULL);
       }
       if (rc == ZNONODE) {
-        LOG(INFO) << "get_children_data_task: ZNONODE";
+        LOG(WARNING) << __func__ << " rc: " << rc << ": " << zerror(rc) << ", path: " << nodes[i];
+        rc = ZOK;
         continue;
       } else if (rc == ZOK) {
+        LOG(INFO) << __func__ << " rc: " << rc << ": " << zerror(rc) << ", path: " << nodes[i];
         data[nodes[i].c_str()] = std::string(buf);
       } else {
-        LOG(INFO) << "get_children_data_task: rc: " << rc;
+        LOG(ERROR) << __func__ << " rc: " << rc << ": " << zerror(rc) << ", path: " << nodes[i];        
         return rc;
       }
     }
     callback->get_children_data_cb(rc, data);
-    LOG(INFO) << "get_children_data_task: rc: " << ZOK;
+    LOG(INFO) << __func__ << " rc: " << rc << ": " << zerror(rc);
     return ZOK;
   }
   int get_data_task(const std::string& path, bool watch,
                     const ZKCallbackPtr& callback) {
     content_listeners_.insert(ListenerMap::value_type(path, callback));
     std::string data;
-    const size_t kBufSize = 1024;
-    char buf[kBufSize];
+    const size_t kBufSize = 20 * 1024;
+    char buf[kBufSize] = {0};
     int rc = ZOK;
     int buf_len = kBufSize;
     if (!watch) {
@@ -222,8 +230,11 @@ class ZKClient : public boost::noncopyable {
     if (rc == ZOK) {
       data.assign(buf);
       callback->get_data_cb(rc, path, data);
+      LOG(INFO) << __func__ << " rc: " << rc << ": " << zerror(rc) << ", path: " << path;
+    } else if (rc == ZNONODE) {
+      LOG(ERROR) << __func__ << " rc: " << rc << ": " << zerror(rc) << ", path: " << path;
+      rc = ZOK;
     }
-    LOG(INFO) << "get_data_task: rc: " << rc;
     return rc;
   }
   int add_expired_listener_task(const std::string& path,
@@ -263,13 +274,24 @@ class ZKClient : public boost::noncopyable {
       zookeeper_close(zh_);
     }
     std::string host(host_);
+    if (host.empty()) {
+      LOG(FATAL) << "zookeeper server is not specified";
+    }
     if (!root_.empty()) {
-      host += "/" + root_;
+      if (!boost::algorithm::starts_with(root_, "/")) {
+        host += "/" + root_;
+      }
+      else {
+        host += root_;
+      }
+    } else {
+      LOG(WARNING) << "zookeeper path root is empty";
     }
     volatile int state = 0;
     while (true) {
+      LOG(INFO) << "zookeeper_init host: " << host << ", session_timeout: " << session_timeout_ << "s";
       zh_ = zookeeper_init(host.c_str(), ZKClient<role>::init_watcher, session_timeout_ * 1000, NULL,
-          reinterpret_cast<void*>(const_cast<int*>(&state)), 0);
+                           reinterpret_cast<void*>(const_cast<int*>(&state)), 0);
       if (zh_) {
         break;
       }
@@ -291,10 +313,10 @@ class ZKClient : public boost::noncopyable {
     return state;
   }
   static void init_watcher(zhandle_t *zh, int type, int state, const char *path,
-      void* watcher_ctx) {
+                           void* watcher_ctx) {
     LOG(WARNING) << "InitWatcher type: " << type << " "
-    << watcherEvent2String(type) << " state: " << state << " "
-    << state2String(state) << " path: " << path;
+                 << watcherEvent2String(type) << " state: " << state << " "
+                 << state2String(state) << " path: " << path;
     if (state == ZOO_CONNECTED_STATE) {
       int *ret_state = reinterpret_cast<int*>(watcher_ctx);
       *ret_state = state;
@@ -307,10 +329,10 @@ class ZKClient : public boost::noncopyable {
     }
   }
   static void event_watcher(zhandle_t *zh, int type, int state,
-      const char *path, void *watcher_ctx) {
+                            const char *path, void *watcher_ctx) {
     LOG(WARNING) << "EventWatcher type: " << type << " "
-    << watcherEvent2String(type) << " state: " << state << " "
-    << state2String(state) << " path: " << path;
+                 << watcherEvent2String(type) << " state: " << state << " "
+                 << state2String(state) << " path: " << path;
     ZKClient<role> *client = reinterpret_cast<ZKClient<role>*>(watcher_ctx);
     if (type == ZOO_SESSION_EVENT) {
       if (state == ZOO_EXPIRED_SESSION_STATE) {

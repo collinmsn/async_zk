@@ -4,7 +4,6 @@
 #
 CMAKE_MINIMUM_REQUIRED (VERSION 2.6.2)
 PROJECT (PushDemo)
-SET (APPLICATION_NAME "xcs")
 SET (APPLICATION_CODENAME "${PROJECT_NAME}")
 SET (APPLICATION_COPYRIGHT_YEARS "2013")
 SET (APPLICATION_VERSION_MAJOR 1)
@@ -40,51 +39,23 @@ SET(CXX_FLAGS
 
 STRING(REPLACE ";" " " CMAKE_CXX_FLAGS "${CXX_FLAGS}")
 
-#
-# Project Output Paths
-#
-SET (MAINFOLDER ${PROJECT_SOURCE_DIR})
-MESSAGE("main folder ${MAINFOLDER}")
-SET (EXECUTABLE_OUTPUT_PATH "${MAINFOLDER}/bin")
-SET (LIBRARY_OUTPUT_PATH "${MAINFOLDER}/lib")
-
-#
-# Project Search Paths
-#
-LIST (APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}")
-LIST (APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}/gen-cpp")
-LIST (APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}/client")
-LIST (APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}/common")
-LIST (APPEND CMAKE_PREFIX_PATH "${MAINFOLDER}/server")
-INCLUDE_DIRECTORIES("${MAINFOLDER}")
-# for thrift "config.h" which is included by thrift/concurrency/thread.h
-INCLUDE_DIRECTORIES("/usr/local/include/thrift")
-
-
 FIND_PACKAGE(Boost REQUIRED)
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 
 FIND_LIBRARY(GLOG_LIBRARY NAMES glog)
 FIND_LIBRARY(GFLAGS_LIBRARY NAMES gflags)
-FIND_LIBRARY(THRIFT_LIBRARY NAMES thrift)
-FIND_LIBRARY(THRIFTNB_LIBRARY NAMES thriftnb)
 FIND_LIBRARY(BOOST_SYSTEM_LIBRARY NAMES boost_system)
 FIND_LIBRARY(BOOST_THREAD_LIBRARY NAMES boost_thread)
 FIND_LIBRARY(LIBEVENT_LIBRARY NAMES event)
 FIND_LIBRARY(ZOOKEEPER_LIBRARY NAMES zookeeper_mt)
 
-LINK_LIBRARIES(${THRIFT_LIBRARY} ${THRIFTNB_LIBRARY}
+LINK_LIBRARIES(
   ${BOOST_SYSTEM_LIBRARY} ${BOOST_THREAD_LIBRARY}
   ${GLOG_LIBRARY} ${GFLAGS_LIBRARY}
   ${LIBEVENT_LIBRARY}
   ${ZOOKEEPER_LIBRARY}
   pthread)
 
-#SET(common_SRC gen-cpp/ChatService.cpp gen-cpp/ChatService_constants.cpp gen-cpp/ChatService_types.cpp)
-#SET(client_SRC  client/Client.cc client/RequestQueue.cc client/ChatServiceClientHandler.cc ${common_SRC})
-#MESSAGE("client src: ${client_SRC}")
-#ADD_EXECUTABLE(client ${client_SRC})
-#SET(server_SRC server/Server.cc server/EmptyResponser.cc server/ChatServiceServerHandler.cc server/TNonblockingPushServer.cc ${common_SRC})
 FILE(GLOB srcs "*.cc")
 MESSAGE("srcs: ${srcs}")
 ADD_EXECUTABLE(demo ${srcs})
