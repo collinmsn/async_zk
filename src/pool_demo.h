@@ -17,7 +17,7 @@
  * demo how to use async zk to watch configure information changing
  */
 
-class PoolDemo : public ZKDefaultCallback {
+class PoolDemo : public async_zk::ZKDefaultCallback {
  public:
   PoolDemo();
   void add_expired_listener(const std::string& path);
@@ -34,7 +34,7 @@ class PoolDemo : public ZKDefaultCallback {
   virtual void data_changed_event_cb(const std::string& path);
   virtual void expired_event_cb(const std::string& path);
  private:
-  ZKClient<ACCESSOR> *client_;
+  async_zk::ZKClient<async_zk::ACCESSOR> *client_;
   std::vector<std::string> endpoints_;
 };
 

@@ -16,7 +16,7 @@ void PoolDemo::get_children(const std::string& path, bool watch) {
   client_->get_children(path, watch, shared_from_this());
 }
 PoolDemo::PoolDemo() {
-  client_ = ZKClient<ACCESSOR>::Instance();
+  client_ = async_zk::ZKClient<async_zk::ACCESSOR>::Instance();
 }
 void PoolDemo::get_children_cb(int rc, const std::string& path,
                                const std::vector<std::string>& children) {

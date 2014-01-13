@@ -1,6 +1,7 @@
 #include "zkdefaultcallback.h"
 #include <glog/logging.h>
 
+namespace async_zk {
 void ZKDefaultCallback::get_children_cb(int rc, const std::string& path, const std::vector<std::string>& children) {
   LOG(INFO) << "rc: " << rc << " path: " << path;
   for (size_t i = 0; i < children.size(); ++i) {
@@ -32,3 +33,4 @@ void ZKDefaultCallback::data_changed_event_cb(const std::string& path) {
 void ZKDefaultCallback::expired_event_cb(const std::string& path) {
   LOG(INFO) << "expired: " << path;
 }
+} // end of namespace async_zk
